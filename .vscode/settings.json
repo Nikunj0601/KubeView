@@ -1,0 +1,40 @@
+{
+    "eslint.format.enable": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "always"
+    },
+    "eslint.workingDirectories": [
+        {
+            "directory": "./services/api",
+            "!cwd": false
+        },
+        {
+            "directory": "./services/ui",
+            "!cwd": false
+        }
+    ],
+    "yaml.customTags": [
+        "!Base64 scalar",
+        "!Cidr scalar",
+        "!And sequence",
+        "!Equals sequence",
+        "!If sequence",
+        "!Not sequence",
+        "!Or sequence",
+        "!Condition scalar",
+        "!FindInMap sequence",
+        "!GetAtt sequence",
+        "!GetAtt scalar",
+        "!GetAZs scalar",
+        "!ImportValue scalar",
+        "!Join sequence",
+        "!Select sequence",
+        "!Split sequence",
+        "!Sub scalar",
+        "!Transform mapping",
+        "!Ref scalar",
+    ],
+    "go.testTimeout": "10m",
+    "go.testFlags": ["-count=1"],
+    "less.lint.unknownAtRules": "ignore"
+}
