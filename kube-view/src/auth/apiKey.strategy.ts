@@ -16,8 +16,6 @@ export class ApiKeyStrategy extends PassportStrategy(Strategy, 'apiKey') {
   }
 
   async authenticate(req: Request) {
-    console.log(req.headers);
-
     const apiKey = req.headers['x-api-key'] as string;
     const githubAccessToken = req.headers['github-token'] as string;
     if (!apiKey) {

@@ -13,6 +13,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { K8sModule } from './k8s/k8s.module';
 import { ApiKeyStrategy } from './auth/apiKey.strategy';
 import { ApiKeyAuthGuard } from './auth/apiKey-auth.guard';
+import { CombinedAuthGuard } from './auth/combined-auth.gaurd';
 
 @Module({
   imports: [
@@ -22,8 +23,6 @@ import { ApiKeyAuthGuard } from './auth/apiKey-auth.guard';
     }),
     TypeOrmModule.forRootAsync({
       useFactory: () => {
-        console.log(process.env.SQLITE_DATABASE_PATH);
-
         return {
           type: 'sqlite',
           database: process.env.SQLITE_DATABASE_PATH,
@@ -46,7 +45,7 @@ import { ApiKeyAuthGuard } from './auth/apiKey-auth.guard';
     JwtAuthGuard,
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard,
+      useClass: CombinedAuthGuard,
     },
   ],
 })

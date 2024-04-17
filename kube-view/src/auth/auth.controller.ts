@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Headers,
   HttpException,
   HttpStatus,
   Post,
@@ -49,14 +50,8 @@ export class AuthController {
   async callback(@Query('code') code: string) {
     if (code) {
       const accessToken = await this.githubService.getGithubAccessToken(code);
-      console.log(accessToken);
-
       const user = await this.githubService.getUserFromAccessToken(accessToken);
-      console.log(accessToken);
-
       const userExists = await this.userService.findOne({ id: user?.id });
-      console.log(user);
-
       const newOrExistingUser = userExists || {
         id: user.id,
         email: user.email,
@@ -80,5 +75,17 @@ export class AuthController {
   @Post('/api-key')
   async generateApiKey(@Query('username') username: string) {
     return await this.userService.generateAPIKey(username);
+  }
+
+  @Get('/generateApiKey')
+  @PublicRoute()
+  async generateApiKeyByCli(@Headers('github-token') githubToken: string) {
+    return await this.userService.createUserAndAPIKey(githubToken);
+  }
+
+  @Get('/apiKeys')
+  @PublicRoute()
+  async listApiKeys(@Headers('github-token') githubToken: string) {
+    return await this.userService.listApiKeys(githubToken);
   }
 }

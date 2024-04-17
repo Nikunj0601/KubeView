@@ -15,8 +15,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: User & { githubAccessToken: string }) {
-    console.log('palyload', payload);
-
     return payload;
   }
 }

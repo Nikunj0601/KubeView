@@ -14,8 +14,6 @@ export class GithubService {
   ) {}
 
   async getGithubAccessToken(authorizationCode: string) {
-    console.log(this.configService.get('github.client_id'));
-
     const { data } = await firstValueFrom(
       this.httpService.post(
         `https://github.com/login/oauth/access_token?client_id=${this.configService.get('github.client_id')}&client_secret=${this.configService.get('github.client_secret')}&code=${authorizationCode}`,
@@ -26,15 +24,11 @@ export class GithubService {
   }
 
   async getUserFromAccessToken(accessToken: string) {
-    console.log(accessToken);
-
     const { data } = await request('GET /user', {
       headers: {
         authorization: `token ${accessToken}`,
       },
     });
-    // console.log(data);
-
     return data;
   }
 
@@ -55,8 +49,6 @@ export class GithubService {
         pull_number: pull,
       },
     );
-
-    console.log('PR DATA ----------', data);
 
     const prDto = new GithubPullRequest();
 
@@ -80,8 +72,6 @@ export class GithubService {
   ) {
     try {
       const fileContents = [];
-      console.log(filePaths);
-      console.log(owner, repo);
 
       for (const filepath of filePaths) {
         const response = await request(
@@ -97,7 +87,6 @@ export class GithubService {
             ref: branch,
           },
         );
-        console.log('CONTENTS OF TEST BRANCH', response.data);
 
         fileContents.push(response.data);
       }
@@ -108,29 +97,28 @@ export class GithubService {
     }
   }
 
-  async writeReviewCommentWithStagingUrl(
+  async writePullRequestCommentWithStagingUrl(
     accessToken: string,
     owner: string,
     repo: string,
     pull: number,
     commentBody: string,
   ) {
-    const { data } = await request(
-      'POST /repos/{owner}/{repo}/pulls/{pull_number}/comments',
+    const { status } = await request(
+      'POST /repos/{owner}/{repo}/issues/{issue_number}/comments',
       {
         headers: {
           authorization: `token ${accessToken}`,
-          accept: 'application/vnd.github.VERSION.raw',
+          accept: 'application/vnd.github+json',
         },
         owner: owner,
         repo: repo,
-        pull_number: pull,
+        issue_number: pull,
         body: commentBody,
-        commit_id: 'd7a011fdad97a9dbc42730b6f35f13979dde66ec',
-        path: 'container1-deployment.yaml',
-        subject_type: 'file',
       },
     );
-    return data;
+    console.log('COMMENT: -------', status);
+
+    return status;
   }
 }

@@ -1,11 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Logger,
   Param,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import { request } from '@octokit/request';
 import { JWTExtractDto } from 'src/auth/jwt-dto.dto';
@@ -13,7 +13,6 @@ import { JWTExtractData } from 'src/auth/jwt.decorator';
 import { GithubPullRequest, GithubRepo } from './github.entity';
 import { GithubService } from './github.service';
 import { K8sService } from 'src/k8s/k8s.service';
-import { ApiKeyAuthGuard } from 'src/auth/apiKey-auth.guard';
 
 @Controller('github')
 export class GithubController {
@@ -115,9 +114,8 @@ export class GithubController {
     );
   }
 
-  // @UseGuards(ApiKeyAuthGuard)
-  @Post('repos/:owner/:name/createDeployment/:pull')
-  async createDeployment(
+  @Post('repos/:owner/:name/createEnvironment/:pull')
+  async createEnvironment(
     @JWTExtractData() userData: JWTExtractDto,
     @Param('owner') owner: string,
     @Param('name') repo: string,
@@ -138,18 +136,27 @@ export class GithubController {
       repo,
       pullRequest.fromBranch,
     );
-    // console.log(contents);
 
     const kubernetesYamlString = contents.join('\n---\n');
-    console.log(kubernetesYamlString);
 
-    const namespace = `${owner.toLocaleLowerCase()}-${repo.toLocaleLowerCase()}-${pull}`;
-    await this.k8sService.createDeployment(namespace, kubernetesYamlString);
+    const namespace = this.k8sService.createNameSpaceName(
+      owner,
+      repo,
+      pull,
+      userData.id,
+    );
+    await this.k8sService.createEnvironment(
+      owner,
+      repo,
+      pull,
+      namespace,
+      kubernetesYamlString,
+      userData.id,
+    );
 
     const services = await this.k8sService.getPublicIpAddress(namespace);
-    // console.log(services);
-    const logs = await this.k8sService.getPodLogs(namespace);
-    console.log(logs);
+    // const logs = await this.k8sService.getPodLogs(namespace);
+
     const staging_url = services.map((service) => ({
       name: service.name,
       url: `http://${service.ip}:${service.port}`,
@@ -158,7 +165,7 @@ export class GithubController {
     const commentBody = staging_url
       .map((service) => `${service.name}: ${service.url}`)
       .join(',\n');
-    await this.githubService.writeReviewCommentWithStagingUrl(
+    await this.githubService.writePullRequestCommentWithStagingUrl(
       userData.githubAccessToken,
       owner,
       repo,
@@ -167,63 +174,17 @@ export class GithubController {
     );
     return {
       staging_url: staging_url,
-      logs,
+      // logs,
     };
   }
 
-  @UseGuards(ApiKeyAuthGuard)
-  @Post('repos/:owner/:name/createDeploymentAPI/:pull')
-  async createDeploymentAPI(
+  @Delete('repos/:owner/:name/deleteEnviornment/:pull')
+  async deleteEnvironment(
     @JWTExtractData() userData: JWTExtractDto,
     @Param('owner') owner: string,
     @Param('name') repo: string,
     @Param('pull') pull: number,
-    @Body('filePaths') filePaths: [string],
   ) {
-    const pullRequest: GithubPullRequest =
-      await this.githubService.getPullRequest(
-        userData.githubAccessToken,
-        owner,
-        repo,
-        pull,
-      );
-    const contents = await this.githubService.getContentFromFiles(
-      userData.githubAccessToken,
-      filePaths,
-      owner,
-      repo,
-      pullRequest.fromBranch,
-    );
-    // console.log(contents);
-
-    const kubernetesYamlString = contents.join('\n---\n');
-    console.log(kubernetesYamlString);
-
-    const namespace = `${owner.toLocaleLowerCase()}-${repo.toLocaleLowerCase()}-${pull}`;
-    await this.k8sService.createDeployment(namespace, kubernetesYamlString);
-
-    const services = await this.k8sService.getPublicIpAddress(namespace);
-    // console.log(services);
-    const logs = await this.k8sService.getPodLogs(namespace);
-    console.log(logs);
-    const staging_url = services.map((service) => ({
-      name: service.name,
-      url: `http://${service.ip}:${service.port}`,
-    }));
-
-    const commentBody = staging_url
-      .map((service) => `${service.name}: ${service.url}`)
-      .join(',\n');
-    await this.githubService.writeReviewCommentWithStagingUrl(
-      userData.githubAccessToken,
-      owner,
-      repo,
-      pull,
-      commentBody,
-    );
-    return {
-      staging_url: staging_url,
-      logs,
-    };
+    await this.k8sService.deleteEnviornment(owner, repo, pull, userData.id);
   }
 }

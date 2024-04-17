@@ -1,17 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { AppsV1Api, CoreV1Api, KubeConfig } from '@kubernetes/client-node';
 import { spawnSync } from 'child_process';
-import * as fs from 'fs';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Environment } from './k8s.entity';
+import { Repository } from 'typeorm';
+import { User } from 'src/user/user.entity';
+
 @Injectable()
 export class K8sService {
   private readonly kubeConfig: KubeConfig;
   private readonly kubeApi: CoreV1Api;
   private readonly kubeAppsApi: AppsV1Api;
   private readonly isK8sClusterConnected: boolean;
-  constructor() {
+  constructor(
+    @InjectRepository(Environment)
+    private environmentRepository: Repository<Environment>,
+  ) {
     this.kubeConfig = new KubeConfig();
-    // kube-view/src/k8s/k8s.service.ts
-    console.log(fs.existsSync(`../kube-view/kube-view/config.yaml`));
     this.kubeConfig.loadFromFile(`../kube-view/kube-view/config.yaml`);
 
     this.kubeApi = this.kubeConfig.makeApiClient(CoreV1Api);
@@ -21,10 +26,14 @@ export class K8sService {
       : false;
   }
 
+  createNameSpaceName(owner: string, repo: string, pull: number, id: number) {
+    return `${owner.toLocaleLowerCase()}-${repo.toLocaleLowerCase()}-${pull}-${id}`;
+  }
+
   async createNamescape(namespace: string) {
     if (this.isK8sClusterConnected) {
       try {
-        return await this.kubeApi.createNamespace({
+        return this.kubeApi.createNamespace({
           metadata: {
             name: namespace,
           },
@@ -37,38 +46,31 @@ export class K8sService {
     }
   }
 
-  async createDeployment(namespace: string, deployemnt: string) {
+  async createEnvironment(
+    owner: string,
+    repo: string,
+    pull: number,
+    namespace: string,
+    kubernetesYamlString: string,
+    id: number,
+  ) {
     try {
       const listNamespaces = await this.kubeApi.listNamespace();
+
       if (
-        !listNamespaces.body.items.map(
-          (item) => item.metadata.namespace === namespace,
+        !listNamespaces.body.items.some(
+          (item) => item.metadata.name === namespace,
         )
       ) {
         await this.createNamescape(namespace);
       }
-
-      // Construct the command
-      const command = 'echo';
-      const args = [deployemnt];
-
-      // Execute the command with spawnSync
-      const echoProcess = spawnSync(command, args, { stdio: 'pipe' });
-
-      if (echoProcess.error) {
-        console.error(`Error executing echo: ${echoProcess.error}`);
-        process.exit(1);
-      }
-
-      // Get the output of echo
-      const echoOutput = echoProcess.stdout.toString().trim();
 
       // Execute kubectl apply -f - with the output of echo as input
       const kubectlProcess = spawnSync(
         'kubectl',
         ['apply', '-n', namespace, '-f', '-'],
         {
-          input: echoOutput,
+          input: kubernetesYamlString,
         },
       );
 
@@ -76,19 +78,33 @@ export class K8sService {
         console.error(
           `Error executing kubectl apply: ${kubectlProcess.output}`,
         );
-        process.exit(1);
       }
-
+      const environment = new Environment();
+      const user = new User();
+      user.username = owner;
+      user.id = id;
+      environment.namespace = namespace;
+      environment.repo = repo;
+      environment.pull = parseInt(pull.toString());
+      environment.username = user;
+      console.log(environment, user);
+      if (
+        !(await this.environmentRepository.findOneBy({ namespace: namespace }))
+      ) {
+        await this.environmentRepository.save(environment);
+      }
       console.log(`kubectl apply output: ${kubectlProcess.output}`);
       // return response;
     } catch (error) {
+      console.log(error);
+
       console.log(`Error while creating deployment in namespace ${namespace}`);
     }
   }
 
   async getPublicIpAddress(namespace: string) {
     const services = await this.kubeApi.listNamespacedService(namespace);
-    // console.log(services);
+    console.log('service:', JSON.stringify(services));
     const resultArray = services.body.items.map((item) => ({
       name: item.metadata.name,
       ip: item.status.loadBalancer.ingress?.[0].ip,
@@ -97,30 +113,86 @@ export class K8sService {
     return resultArray;
   }
 
-  async getPodLogs(namespace: string) {
+  async getPodsDetail(namespace: string) {
     const pods = await this.kubeApi.listNamespacedPod(namespace);
-    const podNames = [];
-    pods.body.items.map((item) => podNames.push(item.metadata.name));
-    console.log(podNames);
+    console.log('PODS: ---------', JSON.stringify(pods));
+
+    return pods.body.items.map((item) => ({
+      name: item.metadata.name,
+      phase: item.status.phase,
+      createdAt: item.status.startTime,
+    }));
+  }
+  async getPodLogs(
+    podName: string,
+    owner: string,
+    id: number,
+    repo: string,
+    pull: number,
+  ) {
+    const namespace = await this.createNameSpaceName(owner, repo, pull, id);
     const logStream = await this.kubeApi.readNamespacedPodLog(
-      podNames[0],
+      podName,
       namespace,
       undefined,
       false,
     );
-    // Listen for data events (log lines)
-    logStream.response.on('data', (chunk) => {
-      console.log('Log:', chunk.toString()); // Process log line
-    });
+    return logStream.body;
+  }
 
-    // Listen for error events
-    logStream.response.on('error', (err) => {
-      console.error('Error:', err); // Handle error
+  async getEnvironmentsByUser(username: string, id: number) {
+    const user = new User();
+    user.id = id;
+    const namespaces = await this.environmentRepository.find({
+      where: {
+        username: user,
+      },
+      relations: {
+        username: true,
+      },
     });
+    const environments = [];
+    for (const namespace of namespaces) {
+      const environment = await this.getEnvorinmentDetails(
+        namespace.username.username,
+        namespace.repo,
+        namespace.pull,
+        namespace.username.id,
+      );
+      environments.push(environment);
+    }
+    return environments;
+  }
 
-    // Listen for end event (stream closed)
-    logStream.response.on('end', () => {
-      console.log('Stream ended'); // Handle end of stream
-    });
+  async getEnvorinmentDetails(
+    owner: string,
+    repo: string,
+    pull: number,
+    id: number,
+  ) {
+    const namespace = this.createNameSpaceName(owner, repo, pull, id);
+    const podDetails = await this.getPodsDetail(namespace);
+    const servicesDetails = await this.getPublicIpAddress(namespace);
+    return {
+      pods: podDetails,
+      services: servicesDetails,
+    };
+  }
+
+  async deleteEnviornment(
+    owner: string,
+    repo: string,
+    pull: number,
+    id: number,
+  ) {
+    try {
+      const namespace = this.createNameSpaceName(owner, repo, pull, id);
+      this.kubeApi.deleteNamespace(namespace);
+      return await this.environmentRepository.delete({
+        namespace: namespace,
+      });
+    } catch (error) {
+      console.error(`Error while deleting environment.`);
+    }
   }
 }
