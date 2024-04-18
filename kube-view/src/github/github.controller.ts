@@ -145,6 +145,14 @@ export class GithubController {
       pull,
       userData.id,
     );
+
+    const commitSha = await this.githubService.getLatestCommitShaByBranch(
+      userData.githubAccessToken,
+      owner,
+      repo,
+      pullRequest.fromBranch,
+    );
+
     await this.k8sService.createEnvironment(
       owner,
       repo,
@@ -152,6 +160,7 @@ export class GithubController {
       namespace,
       kubernetesYamlString,
       userData.id,
+      commitSha,
     );
 
     const services = await this.k8sService.getPublicIpAddress(namespace);

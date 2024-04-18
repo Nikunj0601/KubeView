@@ -39,8 +39,6 @@ export class K8sService {
           },
         });
       } catch (error) {
-        console.log(error);
-
         console.log(`Error creating namespace ${namespace}`);
       }
     }
@@ -53,6 +51,7 @@ export class K8sService {
     namespace: string,
     kubernetesYamlString: string,
     id: number,
+    commitSHA: string,
   ) {
     try {
       const listNamespaces = await this.kubeApi.listNamespace();
@@ -65,12 +64,17 @@ export class K8sService {
         await this.createNamescape(namespace);
       }
 
+      const kubernetesYamlStringWithTag = kubernetesYamlString.replace(
+        /\${COMMIT_SHA}/g,
+        commitSHA, // replace this with the actual commit SHA value
+      );
+
       // Execute kubectl apply -f - with the output of echo as input
       const kubectlProcess = spawnSync(
         'kubectl',
         ['apply', '-n', namespace, '-f', '-'],
         {
-          input: kubernetesYamlString,
+          input: kubernetesYamlStringWithTag,
         },
       );
 
@@ -87,7 +91,6 @@ export class K8sService {
       environment.repo = repo;
       environment.pull = parseInt(pull.toString());
       environment.username = user;
-      console.log(environment, user);
       if (
         !(await this.environmentRepository.findOneBy({ namespace: namespace }))
       ) {
@@ -96,15 +99,12 @@ export class K8sService {
       console.log(`kubectl apply output: ${kubectlProcess.output}`);
       // return response;
     } catch (error) {
-      console.log(error);
-
       console.log(`Error while creating deployment in namespace ${namespace}`);
     }
   }
 
   async getPublicIpAddress(namespace: string) {
     const services = await this.kubeApi.listNamespacedService(namespace);
-    console.log('service:', JSON.stringify(services));
     const resultArray = services.body.items.map((item) => ({
       name: item.metadata.name,
       ip: item.status.loadBalancer.ingress?.[0].ip,
@@ -115,8 +115,6 @@ export class K8sService {
 
   async getPodsDetail(namespace: string) {
     const pods = await this.kubeApi.listNamespacedPod(namespace);
-    console.log('PODS: ---------', JSON.stringify(pods));
-
     return pods.body.items.map((item) => ({
       name: item.metadata.name,
       phase: item.status.phase,

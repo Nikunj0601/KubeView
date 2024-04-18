@@ -117,8 +117,24 @@ export class GithubService {
         body: commentBody,
       },
     );
-    console.log('COMMENT: -------', status);
-
     return status;
+  }
+
+  async getLatestCommitShaByBranch(
+    accessToken: string,
+    owner: string,
+    repo: string,
+    branch: string,
+  ) {
+    const { data } = await request('GET /repos/{owner}/{repo}/commits/{ref}', {
+      headers: {
+        authorization: `token ${accessToken}`,
+        accept: 'application/vnd.github+json',
+      },
+      owner: owner,
+      repo: repo,
+      ref: `heads/${branch}`,
+    });
+    return data.sha;
   }
 }

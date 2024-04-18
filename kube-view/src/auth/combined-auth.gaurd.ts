@@ -26,8 +26,6 @@ export class CombinedAuthGuard implements CanActivate {
     );
 
     if (publicRoute) {
-      console.log('*********');
-
       return true;
     }
 
