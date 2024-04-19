@@ -162,3 +162,49 @@ Use this command to list all available API keys.
     --header 'github-token: your_github_token' 
    ```
    Retrieve logs from a specific pod in the preview environment.
+### Example Github Actions yaml
+   ```
+   name: Docker Build and Push
+   
+   on:
+     pull_request:
+       branches:
+         - main
+         - developer
+   
+   jobs:
+     build-and-push:
+       runs-on: ubuntu-latest
+   
+       steps:
+         - name: Checkout repository
+           uses: actions/checkout@v2
+   
+         - name: Login to Docker Hub
+           uses: docker/login-action@v1
+           with:
+             username: ${{ secrets.DOCKERHUB_USERNAME }}
+             password: ${{ secrets.DOCKERHUB_TOKEN }}
+   
+         - name: Get commit SHA
+           id: commit_sha
+           run: echo "::set-output name=sha::$(git rev-parse HEAD)"
+   
+         - name: Build Docker image
+           run: |
+             docker build -t username/imageName:tag .
+         
+         - name: Push Docker image to Docker Hub
+           run: |
+             docker push username/imageName:tag
+             
+         - name: Call API
+           run: |
+             curl --location 'http://backendhost:port/github/repos/{owner}/{repo}/createEnvironment/${{ github.event.pull_request.number }}' \
+                 --header 'x-api-key: your_api_key' \
+                 --header 'github-token: github_token' \
+                 --header 'Content-Type: application/json' \
+                 --data '{
+                     "filePaths": ["/kube-deployment.yaml", "/kube-service.yaml", "/kube-pvc.yaml"]
+                 }'
+   ```
