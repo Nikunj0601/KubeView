@@ -4,6 +4,9 @@
 
 KubeView is a Kubernetes preview environment tool that allows you to create, manage, and monitor preview environments directly from your GitHub repository. It provides both a GitHub Actions integration and a command-line interface (CLI) tool for seamless integration into your development workflow.
 
+## Demo 
+<video controls src="./assets/KubernetesPreviewEnvDemo.mp4" title="Title"></video>
+
 ### Prerequisites
 
 - Node.js and npm installed on your machine
