@@ -57,9 +57,12 @@ export class GithubService {
     prDto.html_url = data.html_url;
     prDto.number = data.number;
     prDto.title = data.title;
+    prDto.description = data.body;
+    prDto.status = data.state;
     prDto.user = data.user;
     prDto.fromBranch = data.head.ref;
     prDto.toBranch = data.base.ref;
+    console.log(prDto);
 
     return prDto;
   }

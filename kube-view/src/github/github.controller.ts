@@ -31,9 +31,9 @@ export class GithubController {
       username: userData.username,
       type: 'all',
       sort: 'created',
-      per_page: 10,
+      per_page: 100,
     });
-
+    console.log(data);
     return data.map((repo) => {
       const repoDto = new GithubRepo();
 
@@ -41,7 +41,13 @@ export class GithubController {
       repoDto.name = repo.name;
       repoDto.full_name = repo.full_name;
       repoDto.html_url = repo.html_url;
-
+      repoDto.description = repo.description;
+      repoDto.stars = repo.stargazers_count;
+      repoDto.forks = repo.forks_count;
+      repoDto.updatedAt = repo.updated_at;
+      repoDto.isPrivate = repo.visibility === 'private';
+      repoDto.license = repo.license?.name;
+      repoDto.language = repo.language;
       return repoDto;
     });
   }
@@ -87,14 +93,16 @@ export class GithubController {
 
     return data.map((pr) => {
       const prDto = new GithubPullRequest();
-
+      console.log(pr);
       prDto.id = pr.id;
       prDto.created_at = pr.created_at;
       prDto.html_url = pr.html_url;
       prDto.number = pr.number;
       prDto.title = pr.title;
       prDto.user = pr.user;
-
+      prDto.status = pr.state;
+      prDto.fromBranch = pr.head.ref;
+      prDto.toBranch = pr.base.ref;
       return prDto;
     });
   }

@@ -1,4 +1,4 @@
-export class GithubRepo {
+export type GithubRepo = {
   id: number;
   name: string;
   full_name?: string;
@@ -10,9 +10,9 @@ export class GithubRepo {
   updatedAt?: string;
   isPrivate?: boolean;
   license?: string;
-}
+};
 
-export class GithubPullRequest {
+export type GithubPullRequest = {
   id: number;
   html_url: string;
   number: number;
@@ -27,4 +27,4 @@ export class GithubPullRequest {
   status: string;
   fromBranch: string;
   toBranch: string;
-}
+};
