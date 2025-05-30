@@ -13,6 +13,10 @@ KubeView is a Kubernetes preview environment tool that allows you to create, man
 
 ![Architecture Diagram](./assets/architecture.png)
 
+### Demo Video
+
+https://github.com/user-attachments/assets/b4be7521-09fe-4aa6-81dd-bfb594f5f726
+
 ### Setup
 
 1. **Clone Repository:**
