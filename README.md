@@ -9,6 +9,10 @@ KubeView is a Kubernetes preview environment tool that allows you to create, man
 - Node.js and npm installed on your machine
 - Access to a Kubernetes cluster
 
+### Architecture Diagram
+
+![Architecture Diagram](./assets/architecture.png)
+
 ### Setup
 
 1. **Clone Repository:**
